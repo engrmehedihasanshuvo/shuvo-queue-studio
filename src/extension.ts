@@ -9,6 +9,7 @@ const DEFAULT_MODEL = "llama3.1:8b";
 export function activate(context: vscode.ExtensionContext) {
   const queue = new TaskQueue();
   const panelState = { panel: undefined as vscode.WebviewPanel | undefined };
+  const sidebarState = { view: undefined as vscode.WebviewView | undefined };
 
   const getConfig = () => vscode.workspace.getConfiguration("cursorQueueAssistant");
 
@@ -16,19 +17,20 @@ export function activate(context: vscode.ExtensionContext) {
     context.globalState.get<string>("cursorQueueAssistant.model") ??
     getConfig().get<string>("model", DEFAULT_MODEL);
 
-  const refreshPanel = () => {
-    if (!panelState.panel) {
-      return;
-    }
-
+  const setWebviewContent = (webview: vscode.Webview) => {
     const baseUrl = getConfig().get<string>("ollamaBaseUrl", DEFAULT_BASE_URL);
     const model = getSelectedModel();
-    panelState.panel.webview.html = getWebviewHtml(
-      panelState.panel.webview,
-      queue.getAll(),
-      model,
-      baseUrl,
-    );
+    webview.html = getWebviewHtml(webview, queue.getAll(), model, baseUrl);
+  };
+
+  const refreshViews = () => {
+    if (panelState.panel) {
+      setWebviewContent(panelState.panel.webview);
+    }
+
+    if (sidebarState.view) {
+      setWebviewContent(sidebarState.view.webview);
+    }
   };
 
   const chooseModel = async () => {
@@ -47,7 +49,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     if (picked) {
       await context.globalState.update("cursorQueueAssistant.model", picked);
-      refreshPanel();
+      refreshViews();
     }
   };
 
@@ -63,38 +65,97 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     queue.add(trimmed);
-    refreshPanel();
+    refreshViews();
     panelState.panel?.reveal(vscode.ViewColumn.One);
+    await focusSidebarView();
   };
 
   const runQueue = async () => {
     const baseUrl = getConfig().get<string>("ollamaBaseUrl", DEFAULT_BASE_URL);
     const model = getSelectedModel();
 
-    await queue.runSequentially(async (task) => {
-      refreshPanel();
-      return await chatWithOllama({
-        baseUrl,
-        model,
-        prompt: task.prompt,
-        systemPrompt:
-          "You are a coding assistant. Return concise, practical output.",
-      });
-    });
+    await queue.runSequentially(
+      async (task) => {
+        refreshViews();
+        return await chatWithOllama({
+          baseUrl,
+          model,
+          prompt: task.prompt,
+          systemPrompt:
+            "You are a coding assistant. Return concise, practical output.",
+        });
+      },
+      () => {
+        refreshViews();
+      },
+    );
 
-    refreshPanel();
+    refreshViews();
+
+    const tasks = queue.getAll();
+    const doneCount = tasks.filter((task) => task.status === "done").length;
+    const failedCount = tasks.filter((task) => task.status === "failed").length;
+    vscode.window.showInformationMessage(
+      `Queue finished. Done: ${doneCount}, Failed: ${failedCount}`,
+    );
+  };
+
+  const handleIncomingMessage = async (message: { type?: string; prompt?: string }) => {
+    if (message.type === "addTask") {
+      const prompt = String(message.prompt ?? "").trim();
+      if (!prompt) {
+        vscode.window.showWarningMessage("Enter a task first.");
+        return;
+      }
+      queue.add(prompt);
+      refreshViews();
+      return;
+    }
+
+    if (message.type === "clearQueue") {
+      queue.clear();
+      refreshViews();
+      return;
+    }
+
+    if (message.type === "chooseModel") {
+      try {
+        await chooseModel();
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      return;
+    }
+
+    if (message.type === "runQueue") {
+      try {
+        await runQueue();
+        refreshViews();
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+  };
+
+  const focusSidebarView = async () => {
+    await vscode.commands.executeCommand("workbench.view.explorer");
+    await vscode.commands.executeCommand("shuvoQueueStudioView.focus");
   };
 
   const openPanel = async () => {
     if (panelState.panel) {
       panelState.panel.reveal(vscode.ViewColumn.One);
-      refreshPanel();
+      refreshViews();
       return;
     }
 
     panelState.panel = vscode.window.createWebviewPanel(
       "cursorQueueAssistant",
-      "Cursor Queue Assistant",
+      "Shuvo Queue Studio",
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -105,65 +166,56 @@ export function activate(context: vscode.ExtensionContext) {
       panelState.panel = undefined;
     });
 
-    panelState.panel.webview.onDidReceiveMessage(async (message) => {
-      if (message.type === "addTask") {
-        const prompt = String(message.prompt ?? "").trim();
-        if (!prompt) {
-          vscode.window.showWarningMessage("Enter a task first.");
-          return;
-        }
-        queue.add(prompt);
-        refreshPanel();
-        return;
-      }
+    panelState.panel.webview.onDidReceiveMessage(handleIncomingMessage);
+    refreshViews();
+  };
 
-      if (message.type === "clearQueue") {
-        queue.clear();
-        refreshPanel();
-        return;
-      }
+  const viewProvider: vscode.WebviewViewProvider = {
+    resolveWebviewView(webviewView) {
+      sidebarState.view = webviewView;
+      webviewView.webview.options = {
+        enableScripts: true,
+      };
 
-      if (message.type === "chooseModel") {
-        try {
-          await chooseModel();
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            error instanceof Error ? error.message : String(error),
-          );
-        }
-        return;
-      }
+      webviewView.onDidDispose(() => {
+        sidebarState.view = undefined;
+      });
 
-      if (message.type === "runQueue") {
-        try {
-          await runQueue();
-          refreshPanel();
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            error instanceof Error ? error.message : String(error),
-          );
-        }
-      }
-    });
-
-    refreshPanel();
+      webviewView.webview.onDidReceiveMessage(handleIncomingMessage);
+      setWebviewContent(webviewView.webview);
+    },
   };
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("cursorQueueAssistant.open", openPanel),
+    vscode.window.registerWebviewViewProvider("shuvoQueueStudioView", viewProvider),
+    vscode.commands.registerCommand("cursorQueueAssistant.open", async () => {
+      await focusSidebarView();
+    }),
     vscode.commands.registerCommand("cursorQueueAssistant.chooseModel", async () => {
       await chooseModel();
-      await openPanel();
+      await focusSidebarView();
     }),
     vscode.commands.registerCommand("cursorQueueAssistant.addTask", async () => {
       await addTask();
-      await openPanel();
+      await focusSidebarView();
     }),
     vscode.commands.registerCommand("cursorQueueAssistant.runQueue", async () => {
-      await openPanel();
+      await focusSidebarView();
       await runQueue();
     }),
+    vscode.commands.registerCommand("cursorQueueAssistant.openPanel", openPanel),
   );
+
+  void (async () => {
+    const didAutoReveal = context.globalState.get<boolean>(
+      "shuvoQueueStudio.didAutoReveal",
+      false,
+    );
+    if (!didAutoReveal) {
+      await focusSidebarView();
+      await context.globalState.update("shuvoQueueStudio.didAutoReveal", true);
+    }
+  })();
 }
 
 export function deactivate() {}

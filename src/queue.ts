@@ -32,7 +32,10 @@ export class TaskQueue {
     return this.running;
   }
 
-  async runSequentially(executor: (task: QueueTask) => Promise<string>): Promise<void> {
+  async runSequentially(
+    executor: (task: QueueTask) => Promise<string>,
+    onTaskUpdate?: (task: QueueTask) => void,
+  ): Promise<void> {
     if (this.running) {
       return;
     }
@@ -45,12 +48,15 @@ export class TaskQueue {
         }
 
         task.status = "running";
+        onTaskUpdate?.(task);
         try {
           task.output = await executor(task);
           task.status = "done";
+          onTaskUpdate?.(task);
         } catch (error) {
           task.error = error instanceof Error ? error.message : String(error);
           task.status = "failed";
+          onTaskUpdate?.(task);
         }
       }
     } finally {

@@ -3,11 +3,14 @@ import { QueueTask } from "./queue";
 
 export function getWebviewHtml(webview: vscode.Webview, tasks: QueueTask[], model: string, baseUrl: string): string {
   const nonce = Date.now().toString();
-  const taskItems = tasks
-    .map((task) => {
-      return `<li><strong>${escapeHtml(task.status)}</strong> - ${escapeHtml(task.prompt)}${task.output ? `<pre>${escapeHtml(task.output)}</pre>` : ""}${task.error ? `<pre class=error>${escapeHtml(task.error)}</pre>` : ""}</li>`;
-    })
-    .join("");
+  const taskItems =
+    tasks.length === 0
+      ? "<li><em>No tasks yet. Add a task, then run queue.</em></li>"
+      : tasks
+          .map((task, index) => {
+            return `<li><strong>#${index + 1} ${escapeHtml(task.status)}</strong> - ${escapeHtml(task.prompt)}${task.output ? `<pre>${escapeHtml(task.output)}</pre>` : ""}${task.error ? `<pre class=error>${escapeHtml(task.error)}</pre>` : ""}</li>`;
+          })
+          .join("");
 
   return `<!DOCTYPE html>
   <html lang="en">
@@ -29,7 +32,7 @@ export function getWebviewHtml(webview: vscode.Webview, tasks: QueueTask[], mode
     </style>
   </head>
   <body>
-    <h2>Cursor Queue Assistant</h2>
+    <h2>Shuvo Queue Studio</h2>
     <div class="meta">Model: ${escapeHtml(model)} | Ollama: ${escapeHtml(baseUrl)}</div>
     <textarea id="prompt" placeholder="Describe the task you want the local model to handle..."></textarea>
     <div class="row">

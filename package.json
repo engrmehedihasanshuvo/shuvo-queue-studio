@@ -2,9 +2,13 @@
   "name": "shuvo-queue-studio",
   "displayName": "Shuvo Queue Studio",
   "description": "Queue-based command runner with local Ollama model selection for VS Code",
-  "version": "0.0.1",
+  "version": "0.0.8",
   "publisher": "shuvo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/engrmehedihasanshuvo/shuvo-queue-studio.git"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -17,23 +21,38 @@
     "commands": [
       {
         "command": "cursorQueueAssistant.open",
-        "title": "Cursor Queue Assistant: Open"
+        "title": "Shuvo Queue Studio: Open"
       },
       {
         "command": "cursorQueueAssistant.chooseModel",
-        "title": "Cursor Queue Assistant: Choose Local Model"
+        "title": "Shuvo Queue Studio: Choose Local Model"
       },
       {
         "command": "cursorQueueAssistant.addTask",
-        "title": "Cursor Queue Assistant: Add Task"
+        "title": "Shuvo Queue Studio: Add Task"
       },
       {
         "command": "cursorQueueAssistant.runQueue",
-        "title": "Cursor Queue Assistant: Run Queue"
+        "title": "Shuvo Queue Studio: Run Queue"
+      },
+      {
+        "command": "cursorQueueAssistant.openPanel",
+        "title": "Shuvo Queue Studio: Open Floating Panel"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "shuvoQueueStudioView",
+          "name": "Shuvo Queue Studio",
+          "type": "webview",
+          "icon": "media/shuvo-queue-studio.svg",
+          "visibility": "visible"
+        }
+      ]
+    },
     "configuration": {
-      "title": "Cursor Queue Assistant",
+      "title": "Shuvo Queue Studio",
       "properties": {
         "cursorQueueAssistant.ollamaBaseUrl": {
           "type": "string",
