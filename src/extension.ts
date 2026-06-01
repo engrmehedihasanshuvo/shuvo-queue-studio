@@ -206,16 +206,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("cursorQueueAssistant.openPanel", openPanel),
   );
 
-  void (async () => {
-    const didAutoReveal = context.globalState.get<boolean>(
-      "shuvoQueueStudio.didAutoReveal",
-      false,
-    );
-    if (!didAutoReveal) {
-      await focusSidebarView();
-      await context.globalState.update("shuvoQueueStudio.didAutoReveal", true);
-    }
-  })();
+  void focusSidebarView();
 }
 
 export function deactivate() {}

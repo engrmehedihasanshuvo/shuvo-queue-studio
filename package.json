@@ -2,7 +2,7 @@
   "name": "shuvo-queue-studio",
   "displayName": "Shuvo Queue Studio",
   "description": "Queue-based command runner with local Ollama model selection for VS Code",
-  "version": "0.0.8",
+  "version": "0.0.10",
   "publisher": "shuvo",
   "license": "MIT",
   "repository": {
