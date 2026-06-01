@@ -1,0 +1,61 @@
+{
+  "name": "shuvo-queue-studio",
+  "displayName": "Shuvo Queue Studio",
+  "description": "Queue-based command runner with local Ollama model selection for VS Code",
+  "version": "0.0.1",
+  "publisher": "shuvo",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "os": ["darwin", "win32", "linux"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursorQueueAssistant.open",
+        "title": "Cursor Queue Assistant: Open"
+      },
+      {
+        "command": "cursorQueueAssistant.chooseModel",
+        "title": "Cursor Queue Assistant: Choose Local Model"
+      },
+      {
+        "command": "cursorQueueAssistant.addTask",
+        "title": "Cursor Queue Assistant: Add Task"
+      },
+      {
+        "command": "cursorQueueAssistant.runQueue",
+        "title": "Cursor Queue Assistant: Run Queue"
+      }
+    ],
+    "configuration": {
+      "title": "Cursor Queue Assistant",
+      "properties": {
+        "cursorQueueAssistant.ollamaBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama API base URL"
+        },
+        "cursorQueueAssistant.model": {
+          "type": "string",
+          "default": "llama3.1:8b",
+          "description": "Default local model to use"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/vscode": "^1.96.0",
+    "typescript": "^5.8.3"
+  }
+}
